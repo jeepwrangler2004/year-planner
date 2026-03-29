@@ -13,8 +13,16 @@ export default async function handler(req, res) {
         'content-type': req.headers['content-type'] || 'application/json',
         'authorization': req.headers['authorization'] || '',
       },
+      // Don't follow redirects — we want to forward them to the browser
+      redirect: 'manual',
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
     });
+
+    // Forward redirects directly to the browser (e.g. /auth/google → Google OAuth)
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (location) return res.redirect(response.status, location);
+    }
 
     const contentType = response.headers.get('content-type') || '';
     res.status(response.status);
