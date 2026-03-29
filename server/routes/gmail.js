@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { google } from 'googleapis'
-import { sessions } from '../server.js'
+import { getSession } from '../db.js'
 import { parseEmailForEvents } from '../services/emailParser.js'
 
 const router = Router()
@@ -98,7 +98,7 @@ function getHeader(headers, name) {
 // POST /api/gmail/scan — scan inbox for events
 router.post('/scan', async (req, res) => {
   const { session } = req.body
-  const sess = sessions[session]
+  const sess = await getSession(session)
 
   if (!sess?.tokens) {
     return res.status(401).json({ error: 'Not authenticated' })
@@ -149,7 +149,7 @@ router.post('/scan', async (req, res) => {
 // GET /api/gmail/poll?session=xxx — lightweight poll for new emails since last check
 router.get('/poll', async (req, res) => {
   const { session, since } = req.query
-  const sess = sessions[session]
+  const sess = await getSession(session)
   if (!sess?.tokens) return res.status(401).json({ error: 'Not authenticated' })
 
   try {
@@ -190,7 +190,7 @@ router.get('/poll', async (req, res) => {
 // GET /api/gmail/debug?session=xxx — return raw emails + parse results for filter tuning
 router.get('/debug', async (req, res) => {
   const { session } = req.query
-  const sess = sessions[session]
+  const sess = await getSession(session)
   if (!sess?.tokens) return res.status(401).json({ error: 'Not authenticated' })
 
   try {
@@ -340,7 +340,7 @@ async function runIngestion(jobId, tokens, sinceDate = null, beforeDate = null) 
 // Body: { session, sinceDate?, beforeDate? } — both YYYY/MM/DD, scopes to that exact range
 router.post('/ingest', async (req, res) => {
   const { session, sinceDate, beforeDate } = req.body
-  const sess = sessions[session]
+  const sess = await getSession(session)
   if (!sess?.tokens) return res.status(401).json({ error: 'Not authenticated' })
 
   const jobId = Math.random().toString(36).slice(2)
@@ -393,7 +393,7 @@ router.get('/ingest/:jobId', (req, res) => {
 // POST /api/gmail/ingest-all — start year-by-year ingestion with SSE
 router.post('/ingest-all', async (req, res) => {
   const { session, startYear, endYear } = req.body
-  const sess = sessions[session]
+  const sess = await getSession(session)
   if (!sess?.tokens) return res.status(401).json({ error: 'Not authenticated' })
 
   const currentYear = new Date().getFullYear()

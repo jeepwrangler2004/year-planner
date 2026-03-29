@@ -1,51 +1,45 @@
 import express from 'express'
 import cors from 'cors'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
-import { existsSync } from 'fs'
+import { initDb } from './db.js'
 import { authRouter } from './routes/auth.js'
 import { gmailRouter } from './routes/gmail.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// Reflect request origin — works with any origin including Cloudflare tunnels
-app.use(cors({ origin: true, credentials: true }))
+const ALLOWED_ORIGINS = process.env.FRONTEND_ORIGIN
+  ? process.env.FRONTEND_ORIGIN.split(',').map(s => s.trim())
+  : ['http://localhost:5173', 'http://localhost:3001']
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow no-origin requests (e.g. server-to-server) and listed origins
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+    cb(new Error(`CORS: ${origin} not allowed`))
+  },
+  credentials: true,
+}))
 app.use(express.json())
 
-// Request logging
 app.use((req, _res, next) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.path}`)
   next()
 })
 
-// In-memory session store (replace with Redis/DB for production)
-export const sessions = {}
-
 app.use('/auth', authRouter)
 app.use('/api/gmail', gmailRouter)
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }))
 
-// Serve built frontend
-const distPath = join(__dirname, '../client/dist')
-if (existsSync(distPath)) {
-  app.use(express.static(distPath))
-  app.get('/{*path}', (req, res) => {
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/auth')) {
-      res.sendFile(join(distPath, 'index.html'))
-    }
+// Init DB then start server
+initDb().then(() => {
+  const server = app.listen(PORT, () => {
+    console.log(`Year Planner backend running on port ${PORT}`)
   })
-}
-
-// Store reference — required to prevent GC from collecting the http.Server
-// object. Without this, Node's GC closes the socket after ~14s and exits cleanly.
-const server = app.listen(PORT, () => {
-  console.log(`Thread running on port ${PORT}`)
-  if (existsSync(distPath)) console.log(`  Serving frontend from ${distPath}`)
-})
-
-server.on('error', (err) => {
-  console.error(`Server failed to start: ${err.code} ${err.message}`)
+  server.on('error', (err) => {
+    console.error(`Server failed to start: ${err.code} ${err.message}`)
+    process.exit(1)
+  })
+}).catch(err => {
+  console.error('DB init failed:', err)
   process.exit(1)
 })

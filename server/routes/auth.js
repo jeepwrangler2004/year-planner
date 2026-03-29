@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { google } from 'googleapis'
-import { sessions } from '../server.js'
+import { getSession, setSession, deleteSession } from '../db.js'
 import crypto from 'crypto'
 
 const router = Router()
@@ -14,10 +14,10 @@ function getOAuthClient() {
 }
 
 // GET /auth/google — redirect to Google consent
-router.get('/google', (req, res) => {
+router.get('/google', async (req, res) => {
   const oauth2 = getOAuthClient()
   const state = crypto.randomBytes(16).toString('hex')
-  sessions[state] = { pending: true }
+  await setSession(state, { pending: true })
 
   const url = oauth2.generateAuthUrl({
     access_type: 'offline',
@@ -31,40 +31,33 @@ router.get('/google', (req, res) => {
 // GET /auth/google/callback — handle OAuth callback
 router.get('/google/callback', async (req, res) => {
   const { code, state, error } = req.query
+  const frontendBase = process.env.FRONTEND_ORIGIN || `http://localhost:${process.env.PORT || 3001}`
 
-  if (error) {
-    const frontendBase = process.env.FRONTEND_ORIGIN || 'http://localhost:5000'
-    return res.redirect(`${frontendBase}/?error=${error}`)
-  }
+  if (error) return res.redirect(`${frontendBase}/?error=${error}`)
 
-  if (!state || !sessions[state]) {
-    return res.status(400).send('Invalid state')
-  }
+  const stateData = state ? await getSession(state) : null
+  if (!stateData) return res.status(400).send('Invalid state')
 
   try {
     const oauth2 = getOAuthClient()
     const { tokens } = await oauth2.getToken(code)
     oauth2.setCredentials(tokens)
 
-    // Store tokens (in production, store in DB keyed by user ID)
     const sessionId = crypto.randomBytes(16).toString('hex')
-    sessions[sessionId] = { tokens, connectedAt: new Date().toISOString() }
-    delete sessions[state]
+    await setSession(sessionId, { tokens, connectedAt: new Date().toISOString() })
+    await deleteSession(state)
 
-    // Redirect to frontend with session token
-    const frontendBase = process.env.FRONTEND_ORIGIN || `http://localhost:${process.env.PORT || 3001}`
     res.redirect(`${frontendBase}/?connected=true&session=${sessionId}`)
   } catch (err) {
     console.error('OAuth callback error:', err)
-    const frontendBase = process.env.FRONTEND_ORIGIN || `http://localhost:${process.env.PORT || 3001}`
     res.redirect(`${frontendBase}/?error=auth_failed`)
   }
 })
 
 // GET /auth/status?session=xxx — check if connected
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
   const { session } = req.query
-  const sess = sessions[session]
+  const sess = session ? await getSession(session) : null
   res.json({ connected: !!(sess && sess.tokens) })
 })
 
