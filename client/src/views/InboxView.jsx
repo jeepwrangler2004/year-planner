@@ -219,7 +219,7 @@ export default function InboxView({ onStartIngestion, isIngesting, session }) {
   }
 
   const handleConnect = () => {
-    window.location.href = '/auth/google'
+    window.location.href = (import.meta.env.VITE_BACKEND_URL || '') + '/auth/google'
   }
 
   // Handler for individual year ingestion (2012-2022)

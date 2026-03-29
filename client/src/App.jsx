@@ -126,7 +126,7 @@ export default function App() {
               onStartIngestion={(sinceDate, beforeDate) => {
                 if (!session) {
                   showToast('error', 'Session expired — reconnecting Gmail…')
-                  setTimeout(() => { window.location.href = '/auth/google' }, 1200)
+                  setTimeout(() => { window.location.href = (import.meta.env.VITE_BACKEND_URL || '') + '/auth/google' }, 1200)
                   return
                 }
                 const year = sinceDate ? sinceDate.slice(0, 4) : '?'
