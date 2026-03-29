@@ -1,6 +1,8 @@
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null
 
 // ─── Rule-based fallback parser ──────────────────────────────────────────────
 
@@ -288,19 +290,24 @@ Rules:
 
 Return ONLY the JSON array, no other text.`
 
-  try {
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0,
-      max_tokens: 512,
-    })
+  if (!genAI) {
+    console.warn('No GEMINI_API_KEY — using rule-based fallback parser')
+    return parseEmailFallback(emailData)
+  }
 
-    const text = response.choices[0].message.content.trim()
-    const events = JSON.parse(text)
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0, maxOutputTokens: 512 },
+    })
+    const text = result.response.text().trim()
+    // Strip markdown code fences if Gemini wraps the JSON
+    const clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    const events = JSON.parse(clean)
     return Array.isArray(events) ? events.filter(e => e.confidence >= 0.6) : []
   } catch (err) {
-    console.error('GPT parse error (using fallback):', err.message)
+    console.error('Gemini parse error (using fallback):', err.message)
     return parseEmailFallback(emailData)
   }
 }
