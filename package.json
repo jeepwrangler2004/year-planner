@@ -1,0 +1,12 @@
+{
+  "name": "year-planner",
+  "version": "1.0.0",
+  "description": "Year Planner — root package (delegates to server/)",
+  "scripts": {
+    "build": "cd server && npm install",
+    "start": "cd server && node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
