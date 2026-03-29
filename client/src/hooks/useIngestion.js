@@ -67,7 +67,7 @@ export function useIngestion({ onComplete, onError, onProgress }) {
 
     const poll = async () => {
       try {
-        const res = await fetch(apiUrl(`/api/gmail/ingest/${jobId}`)
+        const res = await fetch(apiUrl(`/api/gmail/ingest/${jobId}`))
 
         // 404 = server restarted, job lost — clean up silently
         if (res.status === 404) {

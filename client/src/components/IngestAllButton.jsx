@@ -110,7 +110,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
   const startPolling = useCallback(async () => {
     const poll = async () => {
       try {
-        const res = await fetch(apiUrl('/api/gmail/ingest-all/status')
+        const res = await fetch(apiUrl('/api/gmail/ingest-all/status'))
         const data = await res.json()
 
         if (!data.running && status !== 'idle') {

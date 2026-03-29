@@ -71,7 +71,7 @@ export default function App() {
   useEffect(() => {
     const sessionId = localStorage.getItem('thread-session')
     if (sessionId) {
-      fetch(apiUrl(`/auth/status?session=${sessionId}`)
+      fetch(apiUrl(`/auth/status?session=${sessionId}`))
         .then(r => r.json())
         .then(data => {
           if (!data.connected) {

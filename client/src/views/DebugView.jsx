@@ -13,7 +13,7 @@ export default function DebugView({ session }) {
     setError(null)
     setData(null)
     try {
-      const res = await fetch(apiUrl(`/api/gmail/debug?session=${session}`)
+      const res = await fetch(apiUrl(`/api/gmail/debug?session=${session}`))
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Scan failed')
       setData(json)
