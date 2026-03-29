@@ -30,8 +30,10 @@ app.use('/auth', authRouter)
 app.use('/api/gmail', gmailRouter)
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }))
 
-// Init DB then start server
-initDb().then(() => {
+// Init DB then start server (non-fatal — falls back to in-memory if DB unreachable)
+initDb().catch(err => {
+  console.error('⚠️  DB init failed, running with in-memory sessions:', err.message)
+}).finally(() => {
   const server = app.listen(PORT, () => {
     console.log(`Year Planner backend running on port ${PORT}`)
   })
@@ -39,7 +41,4 @@ initDb().then(() => {
     console.error(`Server failed to start: ${err.code} ${err.message}`)
     process.exit(1)
   })
-}).catch(err => {
-  console.error('DB init failed:', err)
-  process.exit(1)
 })
