@@ -4,7 +4,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'BACKEND_URL not configured' });
   }
 
-  const targetUrl = `${backendUrl}${req.url}`;
+  // req.url includes the full path as seen by Vercel routing.
+  // Strip the leading /api prefix since we proxy to the backend root.
+  // e.g. /api/gmail/ingest -> /api/gmail/ingest (backend route)
+  //      /api/auth/google  -> /auth/google (backend route, rewritten by vercel.json)
+  let backendPath = req.url;
+  // /api/auth/* was rewritten from /auth/* — strip the leading /api so backend sees /auth/*
+  if (backendPath.startsWith('/api/auth/')) {
+    backendPath = backendPath.replace('/api/auth/', '/auth/');
+  }
+
+  const targetUrl = `${backendUrl}${backendPath}`;
 
   try {
     const response = await fetch(targetUrl, {
@@ -13,7 +23,6 @@ export default async function handler(req, res) {
         'content-type': req.headers['content-type'] || 'application/json',
         'authorization': req.headers['authorization'] || '',
       },
-      // Don't follow redirects — we want to forward them to the browser
       redirect: 'manual',
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
     });
