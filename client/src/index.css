@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=Space+Grotesk:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg-base:       oklch(0.10 0.025 260);
+  --bg-surface:    oklch(0.15 0.025 260);
+  --bg-card:       oklch(0.18 0.025 260);
+  --bg-elevated:   oklch(0.22 0.025 260);
+
+  --text-primary:   oklch(0.96 0.005 260);
+  --text-secondary: oklch(0.65 0.015 260);
+  --text-muted:     oklch(0.42 0.015 260);
+
+  --accent:         oklch(0.82 0.16 75);
+  --accent-dim:     oklch(0.82 0.16 75 / 0.15);
+
+  --border:         oklch(0.26 0.02 260);
+  --border-subtle:  oklch(0.18 0.02 260);
+
+  --cat-travel:    oklch(0.68 0.16 220);
+  --cat-music:     oklch(0.65 0.20 300);
+  --cat-family:    oklch(0.68 0.16 30);
+  --cat-food:      oklch(0.78 0.14 75);
+  --cat-wellness:  oklch(0.65 0.14 155);
+  --cat-adventure: oklch(0.70 0.17 55);
+  --cat-other:     oklch(0.60 0.10 260);
+
+  /* Safe areas */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Subtle animated gradient on body */
+  background-image: radial-gradient(ellipse at 20% 0%, oklch(0.20 0.06 260 / 0.4) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 100%, oklch(0.16 0.04 280 / 0.3) 0%, transparent 60%);
+}
+
+.font-display  { font-family: 'Playfair Display', serif; }
+.font-counter  { font-family: 'Space Grotesk', sans-serif; }
+
+/* Nav height accounts for home indicator */
+:root {
+  --nav-height: calc(64px + var(--sab));
+}
+
+/* Scrollable content area — safe area + 1rem base top padding baked in */
+.scroll-area {
+  height: calc(100dvh - var(--nav-height));
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-top: calc(var(--sat) + 1rem) !important;
+  padding-bottom: 1rem;
+}
+.scroll-area::-webkit-scrollbar { display: none; }
+
+/* Glass card effect */
+.glass {
+  background: oklch(0.22 0.025 260 / 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Category utilities */
+.cat-travel    { color: var(--cat-travel); }
+.cat-music     { color: var(--cat-music); }
+.cat-family    { color: var(--cat-family); }
+.cat-food      { color: var(--cat-food); }
+.cat-wellness  { color: var(--cat-wellness); }
+.cat-adventure { color: var(--cat-adventure); }
+.cat-other     { color: var(--cat-other); }
+
+/* Tap highlight */
+button, [role="button"], .cursor-pointer {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}

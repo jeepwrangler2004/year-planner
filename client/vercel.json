@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npx vite build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/auth/(.*)", "destination": "/api/auth/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
