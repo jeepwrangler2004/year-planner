@@ -1,3 +1,4 @@
+import { apiUrl } from "../api.js"
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Pause, Play, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react'
@@ -42,7 +43,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
 
     try {
       // Start the ingestion
-      const res = await fetch('/api/gmail/ingest-all', {
+      const res = await fetch(apiUrl('/api/gmail/ingest-all'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session, startYear: 2012, endYear: new Date().getFullYear() }),
@@ -51,7 +52,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
       if (!res.ok) throw new Error('Failed to start ingestion')
 
       // Connect to SSE stream
-      const eventSource = new EventSource(`/api/gmail/ingest-all?session=${session}`)
+      const eventSource = new EventSource(apiUrl(`/api/gmail/ingest-all?session=${session}`))
       eventSourceRef.current = eventSource
 
       eventSource.onmessage = (e) => {
@@ -109,7 +110,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
   const startPolling = useCallback(async () => {
     const poll = async () => {
       try {
-        const res = await fetch('/api/gmail/ingest-all/status')
+        const res = await fetch(apiUrl('/api/gmail/ingest-all/status')
         const data = await res.json()
 
         if (!data.running && status !== 'idle') {
@@ -147,7 +148,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
 
   const pauseIngestion = useCallback(async () => {
     try {
-      await fetch('/api/gmail/ingest-all/pause', { method: 'POST' })
+      await fetch(apiUrl('/api/gmail/ingest-all/pause'), { method: 'POST' })
       setStatus('paused')
     } catch (err) {
       console.error('Pause error:', err)
@@ -156,7 +157,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
 
   const resumeIngestion = useCallback(async () => {
     try {
-      await fetch('/api/gmail/ingest-all/resume', { method: 'POST' })
+      await fetch(apiUrl('/api/gmail/ingest-all/resume'), { method: 'POST' })
       setStatus('running')
     } catch (err) {
       console.error('Resume error:', err)
@@ -165,7 +166,7 @@ export default function IngestAllButton({ session, onEventsFound }) {
 
   const cancelIngestion = useCallback(async () => {
     try {
-      await fetch('/api/gmail/ingest-all', { method: 'DELETE' })
+      await fetch(apiUrl('/api/gmail/ingest-all'), { method: 'DELETE' })
       setStatus('idle')
       setProgress({ year: 0, yearIndex: 0, totalYears: 0, eventsFound: 0 })
     } catch (err) {

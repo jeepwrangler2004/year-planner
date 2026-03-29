@@ -1,3 +1,4 @@
+import { apiUrl } from "../api.js"
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 const JOB_KEY = 'thread-ingest-job'
@@ -43,7 +44,7 @@ export function useIngestion({ onComplete, onError, onProgress }) {
     try {
       const since = sinceDate || '2026/01/01'
 
-      const res = await fetch('/api/gmail/ingest', {
+      const res = await fetch(apiUrl('/api/gmail/ingest'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session, sinceDate: since, beforeDate: beforeDate || null }),
@@ -66,7 +67,7 @@ export function useIngestion({ onComplete, onError, onProgress }) {
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/gmail/ingest/${jobId}`)
+        const res = await fetch(apiUrl(`/api/gmail/ingest/${jobId}`)
 
         // 404 = server restarted, job lost — clean up silently
         if (res.status === 404) {
@@ -112,7 +113,7 @@ export function useIngestion({ onComplete, onError, onProgress }) {
     if (!id) return
     clearInterval(intervalRef.current)
     try {
-      await fetch(`/api/gmail/ingest/${id}`, { method: 'DELETE' })
+      await fetch(apiUrl(`/api/gmail/ingest/${id}`), { method: 'DELETE' })
     } catch { /* best effort */ }
     clearJob()
   }, [clearJob])

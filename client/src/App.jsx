@@ -1,3 +1,4 @@
+import { apiUrl } from "./api.js"
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from './store/useStore'
@@ -70,7 +71,7 @@ export default function App() {
   useEffect(() => {
     const sessionId = localStorage.getItem('thread-session')
     if (sessionId) {
-      fetch(`/auth/status?session=${sessionId}`)
+      fetch(apiUrl(`/auth/status?session=${sessionId}`)
         .then(r => r.json())
         .then(data => {
           if (!data.connected) {
