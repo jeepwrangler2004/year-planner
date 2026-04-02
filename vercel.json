@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd client && npx vite build",
+  "outputDirectory": "client/dist",
+  "installCommand": "cd client && npm install",
+  "rewrites": [
+    { "source": "/auth/:path*", "destination": "/api/auth/:path*" },
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
+}

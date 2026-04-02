@@ -1,5 +1,8 @@
+// Default to Railway production URL — set BACKEND_URL env var in Vercel to override
+const DEFAULT_BACKEND = 'https://year-planner-production.up.railway.app';
+
 export default async function handler(req, res) {
-  const backendUrl = process.env.BACKEND_URL;
+  const backendUrl = process.env.BACKEND_URL || DEFAULT_BACKEND;
   if (!backendUrl) {
     return res.status(500).json({ error: 'BACKEND_URL not configured' });
   }
