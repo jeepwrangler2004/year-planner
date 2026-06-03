@@ -18,6 +18,19 @@ let ingestAllState = {
   currentJobId: null,
   error: null,
   cancelled: false,
+  newEvents: [],
+}
+
+function createIngestAllProgressPayload({ year, yearIndex, totalYears, totalEvents, status, newEvents = [] }) {
+  return {
+    type: 'progress',
+    year,
+    yearIndex,
+    totalYears,
+    eventsFound: totalEvents,
+    status,
+    newEvents,
+  }
 }
 
 // Primary filter: Gmail's built-in ML categories.
@@ -416,6 +429,7 @@ router.post('/ingest-all', async (req, res) => {
     currentJobId: null,
     error: null,
     cancelled: false,
+    newEvents: [],
   }
 
   // Set SSE headers
@@ -448,14 +462,13 @@ router.post('/ingest-all', async (req, res) => {
     const year = years[i]
     ingestAllState.currentYearIndex = i
 
-    sendEvent({
-      type: 'progress',
+    sendEvent(createIngestAllProgressPayload({
       year,
       yearIndex: i,
       totalYears: years.length,
-      eventsFound: ingestAllState.totalEvents,
+      totalEvents: ingestAllState.totalEvents,
       status: 'running',
-    })
+    }))
 
     try {
       // Run ingestion for this year
@@ -515,6 +528,19 @@ router.post('/ingest-all', async (req, res) => {
             yearJob.events.push(...tagged)
             yearJob.found += tagged.length
             yearJob.scanned++
+
+            if (tagged.length > 0) {
+              ingestAllState.totalEvents += tagged.length
+              ingestAllState.newEvents.push(...tagged)
+              sendEvent(createIngestAllProgressPayload({
+                year,
+                yearIndex: i,
+                totalYears: years.length,
+                totalEvents: ingestAllState.totalEvents,
+                status: 'running',
+                newEvents: tagged,
+              }))
+            }
           }
         }
 
@@ -522,8 +548,7 @@ router.post('/ingest-all', async (req, res) => {
         if (!pageToken) break
       }
 
-      // Add year's events to total
-      ingestAllState.totalEvents += yearJob.found
+      // Year's events were already added as they streamed in.
       delete ingestJobs[jobId]
       ingestAllState.currentJobId = null
 
@@ -569,14 +594,15 @@ router.get('/ingest-all', (req, res) => {
   // Send initial state if job is running
   if (ingestAllState.running) {
     const year = ingestAllState.years[ingestAllState.currentYearIndex]
-    sendEvent({
-      type: 'progress',
+    const newEvents = ingestAllState.newEvents.splice(0)
+    sendEvent(createIngestAllProgressPayload({
       year,
       yearIndex: ingestAllState.currentYearIndex,
       totalYears: ingestAllState.years.length,
-      eventsFound: ingestAllState.totalEvents,
+      totalEvents: ingestAllState.totalEvents,
       status: ingestAllState.paused ? 'paused' : 'running',
-    })
+      newEvents,
+    }))
   }
 
   // Send complete if done
@@ -604,14 +630,15 @@ router.get('/ingest-all', (req, res) => {
     }
 
     const year = ingestAllState.years[ingestAllState.currentYearIndex]
-    sendEvent({
-      type: 'progress',
+    const newEvents = ingestAllState.newEvents.splice(0)
+    sendEvent(createIngestAllProgressPayload({
       year,
       yearIndex: ingestAllState.currentYearIndex,
       totalYears: ingestAllState.years.length,
-      eventsFound: ingestAllState.totalEvents,
+      totalEvents: ingestAllState.totalEvents,
       status: ingestAllState.paused ? 'paused' : 'running',
-    })
+      newEvents,
+    }))
   }, 2000)
 
   // Cleanup on close
@@ -664,4 +691,4 @@ router.delete('/ingest-all', (req, res) => {
   res.json({ cancelled: true })
 })
 
-export { router as gmailRouter }
+export { router as gmailRouter, createIngestAllProgressPayload }

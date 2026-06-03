@@ -233,8 +233,16 @@ export default function InboxView({ onStartIngestion, isIngesting, session }) {
 
   // Handler for events found during ingest-all
   const handleEventsFound = (events) => {
-    // Events are already handled by the parent's onProgress callback
-    console.log(`Received ${events.length} events from ingest-all`)
+    const PROMO_SENDERS = [
+      'emails@songkick.com',
+      'discover@airbnb.com',
+    ]
+    const filtered = events.filter(e => {
+      const from = (e.emailFrom || '').toLowerCase()
+      return !PROMO_SENDERS.some(promo => from.includes(promo))
+    })
+    filtered.forEach(e => useStore.getState().addInboxItem(e))
+    console.log(`Received ${filtered.length} events from ingest-all`)
   }
 
   const scanSummary = lastScanMeta && lastScanMeta.status === 'complete'
