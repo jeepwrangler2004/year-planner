@@ -42,6 +42,46 @@ const BOOKING_SIGNALS = [
   /registration approved/i,
 ]
 
+const OWNED_BOOKING_SIGNALS = [
+  /your tickets? (?:are )?(?:ready|available)/i,
+  /your tickets? for /i,
+  /you have tickets?/i,
+  /here are your tickets?/i,
+  /tickets? (?:just )?(?:got )?sent to you/i,
+  /tickets? have been (?:sent|transferred)/i,
+  /ticket transfer/i,
+  /transferred \d+ tickets?/i,
+  /booking confirmation/i,
+  /reservation confirmed/i,
+  /order confirmation/i,
+  /confirmation (?:number|#)/i,
+  /order\s*#/i,
+  /receipt/i,
+  /you'?re (?:going|confirmed)/i,
+  /admission confirmed/i,
+]
+
+const MARKETING_SIGNALS = [
+  /\bon sale\b/i,
+  /pre-?sale/i,
+  /get your tickets? before/i,
+  /buy tickets? now/i,
+  /tickets? (?:on sale|available) (?:now|today)/i,
+  /(?:limited|exclusive) offer/i,
+  /use code/i,
+  /before they(?:'|’)re gone|before they are gone/i,
+]
+
+function isLikelyMarketingEmail({ subject = '', body = '' }) {
+  const text = `${subject}\n${body.slice(0, 3000)}`
+  const hasMarketingSignal = MARKETING_SIGNALS.some(p => p.test(text))
+  if (!hasMarketingSignal) return false
+
+  // Do not throw away real confirmations that also contain promotional words in footer copy.
+  const hasOwnedBookingSignal = OWNED_BOOKING_SIGNALS.some(p => p.test(text))
+  return !hasOwnedBookingSignal
+}
+
 function detectCategory(from, subject) {
   const f = from.toLowerCase()
   const s = subject.toLowerCase()
@@ -248,12 +288,14 @@ function extractTitleFromBody(body, fallbackTitle) {
  * Catches clear booking emails when GPT is unavailable.
  */
 function parseEmailFallback({ subject, from, body, date: emailDate }) {
+  if (isLikelyMarketingEmail({ subject, body })) return []
   if (!BOOKING_SIGNALS.some(p => p.test(subject))) return []
 
   // Strip common booking prefixes to get a clean event title
   let title = subject
     .replace(/^fwd?:\s*/i, '')
     .replace(/^re:\s*/i, '')
+    .replace(/^your tickets? for\s*/i, '')
     .replace(/^your tickets?:\s*/i, '')
     .replace(/^booking confirmation[:\s–-]*/i, '')
     .replace(/^reservation confirmed[:\s–-]*/i, '')
@@ -307,6 +349,8 @@ function parseEmailFallback({ subject, from, body, date: emailDate }) {
 export async function parseEmailForEvents(emailData) {
   const { subject, from, body, date: emailDate } = emailData
 
+  if (isLikelyMarketingEmail({ subject, body })) return []
+
   const prompt = `You are an event extraction assistant. Given an email, extract any concrete future events or experiences (flights, hotel stays, concerts, festivals, restaurant reservations, sports events, cruises, trips, etc.).
 
 Email:
@@ -331,6 +375,7 @@ Extract events and return JSON array. Each event:
 Rules:
 - Extract events on or after 2024-01-01 — include past events in that range, not just future ones
 - Skip generic promotional emails with no specific booking/reservation
+- Skip ticket on-sale / presale / "buy tickets now" marketing blasts unless the email clearly says the recipient already owns tickets, has an order, or has a confirmed reservation
 - Skip receipts that don't represent a planned experience
 - Return [] if nothing relevant
 - confidence: 0.9+ for clear bookings, 0.6-0.9 for likely events, below 0.6 skip
