@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { Check, X, Mail, RefreshCw, Zap, Trash2, RotateCcw, ExternalLink, PlaneTakeoff, CheckCheck } from 'lucide-react'
 import { locationLabel, hasRoute } from '../utils/locationDisplay'
+import { buildGmailOpenLinks } from '../utils/gmailLinks'
 import { useStore, getCategoryMeta } from '../store/useStore'
 import IngestAllButton from '../components/IngestAllButton'
 import HistoricalYearButtons from '../components/HistoricalYearButtons'
 
 function InboxCard({ item, onApprove, onDismiss }) {
   const meta = getCategoryMeta(item.category)
+  const gmailLinks = buildGmailOpenLinks(item)
   const [leaving, setLeaving] = useState(null)
 
   const handleApprove = () => {
@@ -81,18 +83,19 @@ function InboxCard({ item, onApprove, onDismiss }) {
               <Mail size={11} className="flex-shrink-0" />
               <span className="truncate">{item.emailFrom}</span>
             </div>
-            {item.gmailId && (
+            {gmailLinks.webUrl && (
               <motion.a
-                href={`https://mail.google.com/mail/u/0/#all/${item.gmailId}`}
+                href={gmailLinks.appUrl || gmailLinks.webUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileTap={{ scale: 0.88 }}
                 onClick={e => e.stopPropagation()}
                 className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg flex-shrink-0 ml-2"
                 style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                title="Open the source email in Gmail"
               >
                 <ExternalLink size={10} />
-                View
+                Gmail
               </motion.a>
             )}
           </div>

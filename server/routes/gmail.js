@@ -108,6 +108,25 @@ function getHeader(headers, name) {
   return headers?.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || ''
 }
 
+function buildGmailWebUrl(msg) {
+  const openId = msg?.threadId || msg?.id
+  return openId ? `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(openId)}` : null
+}
+
+function tagEventsWithGmailMessage(events, msg) {
+  const headers = msg?.payload?.headers || []
+  const rfc822MessageId = getHeader(headers, 'Message-ID')
+  const gmailWebUrl = buildGmailWebUrl(msg)
+
+  return events.map(e => ({
+    ...e,
+    gmailId: msg.id,
+    gmailThreadId: msg.threadId || msg.id,
+    ...(rfc822MessageId ? { rfc822MessageId } : {}),
+    ...(gmailWebUrl ? { gmailWebUrl } : {}),
+  }))
+}
+
 function parseYmd(value) {
   const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(value || '')
   if (!match) return null
@@ -175,7 +194,7 @@ router.post('/scan', async (req, res) => {
         if (!body) continue
 
         const events = await parseEmailForEvents({ subject, from, body, date: dateHeader })
-        inboxItems.push(...events.map(e => ({ ...e, gmailId: msg.id })))
+        inboxItems.push(...tagEventsWithGmailMessage(events, msg))
       }
     }
 
@@ -216,7 +235,7 @@ router.get('/poll', async (req, res) => {
 
       if (body) {
         const events = await parseEmailForEvents({ subject, from, body, date: dateHeader })
-        inboxItems.push(...events.map(e => ({ ...e, gmailId: msg.id })))
+        inboxItems.push(...tagEventsWithGmailMessage(events, msg))
       }
     }
 
@@ -354,7 +373,7 @@ async function runIngestion(jobId, tokens, sinceDate = null, beforeDate = null) 
           if (!body) continue
 
           const events = await parseEmailForEvents({ subject, from, body, date: dateHeader })
-          const tagged = events.map(e => ({ ...e, gmailId: msg.id }))
+          const tagged = tagEventsWithGmailMessage(events, msg)
           job.events.push(...tagged)
           job.found += tagged.length
           job.scanned++
@@ -551,7 +570,7 @@ router.post('/ingest-all', async (req, res) => {
             if (!body) continue
 
             const events = await parseEmailForEvents({ subject, from, body, date: dateHeader })
-            const tagged = events.map(e => ({ ...e, gmailId: msg.id }))
+            const tagged = tagEventsWithGmailMessage(events, msg)
             yearJob.events.push(...tagged)
             yearJob.found += tagged.length
             yearJob.scanned++
@@ -720,4 +739,5 @@ router.delete('/ingest-all', (req, res) => {
   res.json({ cancelled: true })
 })
 
-export { router as gmailRouter, createIngestAllProgressPayload, buildGmailDateFilter }
+export { router as gmailRouter, createIngestAllProgressPayload, buildGmailDateFilter, tagEventsWithGmailMessage }
+export default router

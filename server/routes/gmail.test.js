@@ -29,3 +29,22 @@ test('Gmail year date filter covers the full requested historical year', () => {
     'after:2018/12/31 before:2020/01/01'
   )
 })
+
+test('Gmail event metadata includes thread URL instead of message-id-only URL', async () => {
+  const { tagEventsWithGmailMessage } = await import('./gmail.js')
+  const [event] = tagEventsWithGmailMessage(
+    [{ title: 'Hot Chip', startDate: '2019-03-23' }],
+    {
+      id: 'api-message-id',
+      threadId: 'gmail-thread-id',
+      payload: {
+        headers: [{ name: 'Message-ID', value: '<abc@example.com>' }],
+      },
+    }
+  )
+
+  assert.equal(event.gmailId, 'api-message-id')
+  assert.equal(event.gmailThreadId, 'gmail-thread-id')
+  assert.equal(event.rfc822MessageId, '<abc@example.com>')
+  assert.equal(event.gmailWebUrl, 'https://mail.google.com/mail/u/0/#all/gmail-thread-id')
+})
