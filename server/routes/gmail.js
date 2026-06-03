@@ -647,8 +647,9 @@ router.get('/ingest-all', (req, res) => {
   })
 })
 
-// GET /api/gmail/ingest-all/status — check if running + current progress
+// GET /api/gmail/ingest-all/status — check if running + drain queued events
 router.get('/ingest-all/status', (req, res) => {
+  const newEvents = ingestAllState.newEvents.splice(0)
   res.json({
     running: ingestAllState.running,
     paused: ingestAllState.paused,
@@ -656,6 +657,7 @@ router.get('/ingest-all/status', (req, res) => {
     currentYear: ingestAllState.years[ingestAllState.currentYearIndex] || null,
     totalYears: ingestAllState.years.length,
     totalEvents: ingestAllState.totalEvents,
+    newEvents,
     error: ingestAllState.error,
   })
 })

@@ -113,12 +113,16 @@ export default function IngestAllButton({ session, onEventsFound }) {
         const res = await fetch(apiUrl('/api/gmail/ingest-all/status'))
         const data = await res.json()
 
-        if (!data.running && status !== 'idle') {
+        if (data.newEvents && data.newEvents.length > 0) {
+          onEventsFound?.(data.newEvents)
+        }
+
+        if (!data.running) {
           // Job finished
           if (data.error) {
             setError({ message: data.error })
             setStatus('error')
-          } else {
+          } else if (data.totalYears > 0) {
             setStatus('complete')
           }
           clearInterval(pollIntervalRef.current)
@@ -143,8 +147,42 @@ export default function IngestAllButton({ session, onEventsFound }) {
     }
 
     poll()
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     pollIntervalRef.current = setInterval(poll, POLL_MS)
-  }, [status])
+  }, [onEventsFound])
+
+  // Resume observing an already-running bulk ingest when the user navigates
+  // away from Inbox and comes back. The backend keeps running; this reconnects
+  // the UI and drains queued events into the inbox.
+  useEffect(() => {
+    let cancelled = false
+
+    async function resumeIfRunning() {
+      if (!session || status !== 'idle') return
+      try {
+        const res = await fetch(apiUrl('/api/gmail/ingest-all/status'))
+        const data = await res.json()
+        if (cancelled || !data.running) return
+
+        setProgress({
+          year: data.currentYear,
+          yearIndex: data.currentYearIndex,
+          totalYears: data.totalYears,
+          eventsFound: data.totalEvents,
+        })
+        if (data.newEvents && data.newEvents.length > 0) {
+          onEventsFound?.(data.newEvents)
+        }
+        setStatus(data.paused ? 'paused' : 'running')
+        startPolling()
+      } catch (err) {
+        console.error('Resume ingest-all status error:', err)
+      }
+    }
+
+    resumeIfRunning()
+    return () => { cancelled = true }
+  }, [session, status, startPolling, onEventsFound])
 
   const pauseIngestion = useCallback(async () => {
     try {
@@ -180,9 +218,10 @@ export default function IngestAllButton({ session, onEventsFound }) {
     startIngestion()
   }, [startIngestion])
 
-  // Progress percentage
+  // Progress percentage. While running, count only fully completed years;
+  // otherwise the final year looks 100% done the moment it starts.
   const progressPct = progress.totalYears > 0 
-    ? Math.round(((progress.yearIndex + 1) / progress.totalYears) * 100)
+    ? Math.round(((status === 'complete' ? progress.totalYears : progress.yearIndex) / progress.totalYears) * 100)
     : 0
 
   // --- Render states ---
