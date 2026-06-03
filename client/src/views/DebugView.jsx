@@ -1,4 +1,4 @@
-import { apiUrl } from "./api.js"
+import { apiUrl } from "../api.js"
 import { useState } from 'react'
 
 export default function DebugView({ session }) {

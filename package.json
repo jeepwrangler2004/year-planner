@@ -1,12 +1,23 @@
 {
   "name": "year-planner",
   "version": "1.0.0",
-  "description": "Year Planner — root package (delegates to server/)",
+  "description": "Year Planner \u2014 Vercel frontend + serverless backend, local Node server support",
   "scripts": {
-    "build": "cd server && npm install",
-    "start": "cd server && node server.js"
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && node server.js",
+    "build:client": "cd client && npm run build",
+    "start:server": "cd server && node server.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "openai": "^6.24.0",
+    "pg": "^8.20.0"
   }
 }
