@@ -133,13 +133,47 @@ function extractDateFromBody(body, emailDate) {
     if (d >= SCAN_FLOOR) candidates.push(d)
   }
 
+  // Gmail smart-card / AXS resale transfer style: "Sat, Jun 6 at 7:00 PM"
+  const p6 = /(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+at\s+\d{1,2}:\d{2}\s*(?:AM|PM))?/gi
+  for (const m of text.matchAll(p6)) {
+    const month = MONTH_MAP[m[1].toLowerCase().slice(0, 3)]
+    const day = parseInt(m[2])
+    let year = emailYear
+    let d = new Date(year, month, day)
+    if (d < emailSentDate) {
+      year += 1
+      d = new Date(year, month, day)
+    }
+    if (d >= SCAN_FLOOR) candidates.push(d)
+  }
+
   if (!candidates.length) return null
   // Return the earliest date in range
   return candidates.sort((a, b) => a - b)[0]
 }
 
+function cleanLocation(raw) {
+  const parts = raw.trim().split(',').map(p => p.trim()).filter(Boolean)
+  if (!parts.length) return null
+  // If first segment starts with a digit it's a street address — use city/state instead
+  if (/^\d+/.test(parts[0])) return parts.slice(1, 3).join(', ')
+  // Venue name — keep venue + city (first two comma-parts)
+  return parts.slice(0, 2).join(', ')
+}
+
 function extractLocationFromBody(body) {
   const text = body.slice(0, 3000)
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+
+  // Gmail event cards often put venue/location on the line immediately after
+  // the date/time line, e.g. "Sat, Jun 6 at 7:00 PM" then venue.
+  const dateLine = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}/i
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (dateLine.test(lines[i])) {
+      const candidate = lines[i + 1]
+      if (candidate && !/^tickets?\b/i.test(candidate)) return cleanLocation(candidate)
+    }
+  }
 
   // "Venue: ..." / "Location: ..." / "Address: ..."
   const venueMatch = text.match(/(?:venue|location|address)[:\t\s]+([^\n\r]{4,80})/i)
@@ -147,16 +181,12 @@ function extractLocationFromBody(body) {
     let raw = venueMatch[1].trim()
     // Strip trailing pipe/semicolon separated metadata and phone numbers
     raw = raw.replace(/\s*[|;].*$/, '').replace(/\s+\(?\+?[\d\-\(\)]{7,}\)?.*$/, '').trim()
-    const parts = raw.split(',').map(p => p.trim()).filter(Boolean)
-    if (!parts.length) return null
-    // If first segment starts with a digit it's a street address — use city/state instead
-    if (/^\d+/.test(parts[0])) return parts.slice(1, 3).join(', ')
-    // Venue name — keep venue + city (first two comma-parts)
-    return parts.slice(0, 2).join(', ')
+    return cleanLocation(raw)
   }
 
-  // "at [Venue Name]" — common in invite/ticket emails
-  const atMatch = text.match(/\bat\s+([A-Z][A-Za-z\s']{3,50}(?:Theater|Theatre|Arena|Hall|Center|Centre|Park|Terminal|Club|Bar|Garden|Forum|Amphitheater|Ballroom|Pavilion|Stadium|Field))/i)
+  // "at [Venue Name]" — common in invite/ticket emails. Avoid time phrases
+  // like "at 7:00 PM", which can otherwise capture "PM\nVenue".
+  const atMatch = text.match(/\bat\s+(?!\d|AM\b|PM\b)([A-Z][A-Za-z ']{3,50}(?:Theater|Theatre|Arena|Hall|Center|Centre|Park|Terminal|Club|Bar|Garden|Forum|Amphitheater|Ballroom|Pavilion|Stadium|Field))/i)
   if (atMatch) return atMatch[1].trim()
 
   // City, State from address lines
@@ -198,6 +228,21 @@ function extractFlightLocations(body) {
   return { origin: null, destination: null }
 }
 
+function isGenericTicketTransferSubject(subject) {
+  return /^tickets?\s+(?:just\s+)?(?:got\s+)?sent to you$/i.test(subject.trim())
+}
+
+function extractTitleFromBody(body, fallbackTitle) {
+  if (!isGenericTicketTransferSubject(fallbackTitle)) return fallbackTitle
+
+  const lines = body.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  const dateLine = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}/i
+  const idx = lines.findIndex(l => dateLine.test(l))
+  if (idx > 0) return lines[idx - 1]
+
+  return fallbackTitle
+}
+
 /**
  * Rule-based fallback — no LLM required.
  * Catches clear booking emails when GPT is unavailable.
@@ -217,6 +262,8 @@ function parseEmailFallback({ subject, from, body, date: emailDate }) {
     .replace(/^itinerary[:\s–-]*/i, '')
     .replace(/^you'?re going[:\s–-]*/i, '')
     .trim()
+
+  title = extractTitleFromBody(body, title)
 
   if (!title || title.length < 3) return []
 
