@@ -52,3 +52,21 @@ Order #123456`,
   assert.equal(events[0].startDate, '2024-03-23')
   assert.equal(events[0].location, 'Brooklyn Steel, Brooklyn')
 })
+
+test('parses confirmed ticket emails before 2024 for historical backfill', async () => {
+  const events = await parseEmailForEvents({
+    subject: 'Your tickets for Hot Chip',
+    from: 'Ticketmaster <noreply@ticketmaster.com>',
+    date: 'Fri, 1 Mar 2019 10:00:00 -0500',
+    body: `Your tickets are ready.
+Hot Chip
+Sat, Mar 23, 2019 at 8:00 PM
+Brooklyn Steel, Brooklyn, NY
+Order #987654`,
+  })
+
+  assert.equal(events.length, 1)
+  assert.equal(events[0].title, 'Hot Chip')
+  assert.equal(events[0].startDate, '2019-03-23')
+  assert.equal(events[0].location, 'Brooklyn Steel, Brooklyn')
+})

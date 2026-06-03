@@ -108,6 +108,33 @@ function getHeader(headers, name) {
   return headers?.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || ''
 }
 
+function parseYmd(value) {
+  const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(value || '')
+  if (!match) return null
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+}
+
+function formatYmd(date) {
+  return `${date.getUTCFullYear()}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`
+}
+
+function addDays(date, days) {
+  const copy = new Date(date)
+  copy.setUTCDate(copy.getUTCDate() + days)
+  return copy
+}
+
+function buildGmailDateFilter(sinceDate = '2026/01/01', beforeDate = null) {
+  const since = parseYmd(sinceDate)
+  const after = since ? formatYmd(addDays(since, -1)) : sinceDate
+
+  if (!beforeDate) return `after:${after}`
+
+  const before = parseYmd(beforeDate)
+  const exclusiveBefore = before ? formatYmd(addDays(before, 1)) : beforeDate
+  return `after:${after} before:${exclusiveBefore}`
+}
+
 // POST /api/gmail/scan — scan inbox for events
 router.post('/scan', async (req, res) => {
   const { session } = req.body
@@ -294,7 +321,7 @@ async function runIngestion(jobId, tokens, sinceDate = null, beforeDate = null) 
 
     // Build date filter — scoped to the requested year range
     const after = sinceDate || '2026/01/01'
-    const dateFilter = beforeDate ? `after:${after} before:${beforeDate}` : `after:${after}`
+    const dateFilter = buildGmailDateFilter(after, beforeDate)
 
     while (true) {
       if (job.cancelled) { job.status = 'cancelled'; return }
@@ -489,7 +516,7 @@ router.post('/ingest-all', async (req, res) => {
       let pageToken = undefined
       const sinceDate = `${year}/01/01`
       const beforeDate = `${year}/12/31`
-      const dateFilter = `after:${sinceDate} before:${beforeDate}`
+      const dateFilter = buildGmailDateFilter(sinceDate, beforeDate)
 
       while (true) {
         if (ingestAllState.cancelled) break
@@ -693,4 +720,4 @@ router.delete('/ingest-all', (req, res) => {
   res.json({ cancelled: true })
 })
 
-export { router as gmailRouter, createIngestAllProgressPayload }
+export { router as gmailRouter, createIngestAllProgressPayload, buildGmailDateFilter }

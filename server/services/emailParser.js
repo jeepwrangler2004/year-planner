@@ -97,8 +97,9 @@ function detectCategory(from, subject) {
   return 'other'
 }
 
-// Minimum date — accept anything from 2024 onwards (Gmail query handles the real floor)
-const SCAN_FLOOR = new Date('2024-01-01')
+// Minimum date for historical backfill. Ingest-all starts at 2012, so the parser
+// must not silently discard confirmed events before 2024.
+const SCAN_FLOOR = new Date('2012-01-01')
 
 function extractDateFromBody(body, emailDate) {
   const text = body.slice(0, 3000)
@@ -147,7 +148,7 @@ function extractDateFromBody(body, emailDate) {
   const p3 = /(\d{4})-(\d{2})-(\d{2})/g
   for (const m of text.matchAll(p3)) {
     const year = parseInt(m[1])
-    if (year < 2024 || year > 2030) continue
+    if (year < 2012 || year > 2030) continue
     const d = new Date(year, parseInt(m[2]) - 1, parseInt(m[3]))
     if (d >= SCAN_FLOOR) candidates.push(d)
   }
@@ -156,7 +157,7 @@ function extractDateFromBody(body, emailDate) {
   const p4 = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g
   for (const m of text.matchAll(p4)) {
     const year = parseInt(m[3])
-    if (year < 2024 || year > 2030) continue
+    if (year < 2012 || year > 2030) continue
     const d = new Date(year, parseInt(m[1]) - 1, parseInt(m[2]))
     if (d >= SCAN_FLOOR) candidates.push(d)
   }
@@ -168,7 +169,7 @@ function extractDateFromBody(body, emailDate) {
     const day   = parseInt(m[2])
     const year  = 2000 + parseInt(m[3])
     if (month < 0 || month > 11 || day < 1 || day > 31) continue
-    if (year < 2024 || year > 2030) continue
+    if (year < 2012 || year > 2030) continue
     const d = new Date(year, month, day)
     if (d >= SCAN_FLOOR) candidates.push(d)
   }
@@ -373,7 +374,7 @@ Extract events and return JSON array. Each event:
 }
 
 Rules:
-- Extract events on or after 2024-01-01 — include past events in that range, not just future ones
+- Extract events on or after 2012-01-01 — include past events in that range, not just future ones
 - Skip generic promotional emails with no specific booking/reservation
 - Skip ticket on-sale / presale / "buy tickets now" marketing blasts unless the email clearly says the recipient already owns tickets, has an order, or has a confirmed reservation
 - Skip receipts that don't represent a planned experience

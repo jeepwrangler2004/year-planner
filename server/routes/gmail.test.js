@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createIngestAllProgressPayload } from './gmail.js'
+import { createIngestAllProgressPayload, buildGmailDateFilter } from './gmail.js'
 
 test('bulk ingest progress payload carries newly parsed events to SSE clients', () => {
   const event = {
@@ -21,4 +21,11 @@ test('bulk ingest progress payload carries newly parsed events to SSE clients', 
   assert.equal(payload.type, 'progress')
   assert.equal(payload.eventsFound, 9)
   assert.deepEqual(payload.newEvents, [event])
+})
+
+test('Gmail year date filter covers the full requested historical year', () => {
+  assert.equal(
+    buildGmailDateFilter('2019/01/01', '2019/12/31'),
+    'after:2018/12/31 before:2020/01/01'
+  )
 })
